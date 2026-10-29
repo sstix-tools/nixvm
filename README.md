@@ -1,38 +1,63 @@
-# template-bash-utility
+# nixvm
 
-Template repository for creating POSIX / Bash shell script utilities deployed via `sstix-tools` for **APT**, **RPM**, and **Nix** with **Zsh autocompletion**.
+`nixvm` is a Nix-backed Java, Ruby, and Python version manager for macOS. It installs supported Nixpkgs versions and records a selected version for each runtime.
 
-## Repository Structure
+## Requirements
+
+- macOS on Apple Silicon (`aarch64`).
+- Nix with `nix-command` and `flakes` enabled.
+- Zsh to use the provided command completion.
+- `jq` when running `bin/nixvm` directly; the Nix package supplies it automatically.
+
+## Install
+
+From a checkout of this repository, install the flake package into your Nix profile:
+
+```bash
+nix profile install .
 ```
-├── .github/workflows/
-│   ├── release.yaml             # Automated packaging and release pipeline
-│   └── test.yaml                # CI test workflow
-├── bin/
-│   └── template-bash-utility    # Main executable script
-├── completion/
-│   └── _template-bash-utility   # Zsh completion definition
-├── packaging/
-│   ├── debian/                  # Debian package metadata
-│   └── rpm/                     # RPM spec file
-├── flake.nix                    # Nix package & app definition
-├── flake.lock                   # Nix lockfile
+
+Or run it directly without installing:
+
+```bash
+nix run . -- --help
+```
+
+Add the installed completion directory to `~/.zshrc` before calling `compinit` (adjust the profile path if you use a non-default Nix profile):
+
+```zsh
+fpath=("$HOME/.nix-profile/share/zsh/site-functions" $fpath)
+autoload -Uz compinit
+compinit
+```
+
+`nixvm use` records the selected version but does not modify the current shell's `PATH` or `JAVA_HOME`. Add the selected runtime's installed `bin` directory to `PATH` manually when you want to use it.
+
+## Usage
+
+```bash
+nixvm install java 21
+nixvm install ruby 3.3
+nixvm install python 3.12
+nixvm list [runtime] [--available|--installed]
+nixvm use <runtime> <version>
+nixvm remove <runtime> <version>
+```
+
+Java versions use an integer major version; Ruby and Python versions use `major.minor`. Use `nixvm list --available` to see versions supported by the locked Nixpkgs revision. Run `nixvm --help` for command details.
+
+## Project Structure
+
+```text
+├── .github/workflows/  # CI and release workflows
+├── bin/nixvm           # CLI executable
+├── completion/_nixvm   # Zsh command completion
+├── flake.nix           # Darwin Nix package and app
+├── flake.lock          # Locked Nixpkgs input
 ├── LICENSE
 └── README.md
 ```
 
-## How to Use This Template
-1. Create a new repository in GitHub from this template under the `sstix-tools` organization.
-2. Rename the files and occurrences of `template-bash-utility` to your tool name:
-   - `bin/template-bash-utility` -> `bin/<your-tool>`
-   - `completion/_template-bash-utility` -> `completion/_<your-tool>`
-   - `packaging/rpm/template-bash-utility.spec` -> `packaging/rpm/<your-tool>.spec`
-   - In `flake.nix`: update `pname = "<your-tool>"` and description
-   - In `.github/workflows/release.yaml`: update `pkg_name="<your-tool>"`
-   - In `packaging/debian/control`: update `Package:` and `Description:`
-3. Implement your utility logic in `bin/<your-tool>`.
-4. Commit your changes and tag a release:
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-5. GitHub Actions will automatically build Debian (`.deb`), RPM (`.rpm`), and Nix assets and dispatch a trigger to `sstix-tools/registry`.
+## Releases
+
+Push a version tag such as `v1.0.0` to create a GitHub release. The release workflow publishes a source archive, its Nix SRI hash, and a manifest for the `sstix-tools` registry.
