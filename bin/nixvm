@@ -6,13 +6,6 @@ nixvm__error() {
   printf 'nixvm: %s\n' "$*" >&2
 }
 
-nixvm__warn_shell_not_integrated() {
-  if [[ "${_NIXVM_SHELL_WRAPPER_ACTIVE:-}" != 1 ]]; then
-    nixvm__error "The current shell was not updated because the Zsh integration is not loaded. Run 'eval \"\$(nixvm --shell-integration)\"' in Zsh or start a new Zsh session."
-  fi
-  return 0
-}
-
 nixvm__usage() {
   cat <<'EOF'
 nixvm - Nix-backed Java, Ruby, and Python version manager
@@ -22,7 +15,6 @@ Usage:
   nixvm list [runtime] [--available|--installed]
   nixvm use <runtime> <version>
   nixvm remove <runtime> <version>
-  nixvm --shell-integration
   nixvm --help
 
 Runtimes: java, ruby, python
@@ -274,8 +266,7 @@ nixvm__use() {
     return 1
   fi
 
-  printf 'Using %s %s.\n' "$runtime" "$version"
-  nixvm__warn_shell_not_integrated
+  printf 'Selected %s %s.\n' "$runtime" "$version"
 }
 
 nixvm__remove() {
@@ -333,124 +324,9 @@ nixvm__remove() {
 
   if [[ "$was_active" -eq 1 ]]; then
     printf 'Removed %s %s and cleared its active selection.\n' "$runtime" "$version"
-    nixvm__warn_shell_not_integrated
   else
     printf 'Removed %s %s.\n' "$runtime" "$version"
   fi
-}
-
-nixvm__emit_shell_integration() {
-  cat <<'EOF'
-if [[ -z "${_NIXVM_SHELL_INTEGRATION_LOADED:-}" ]]; then
-  typeset -g _NIXVM_SHELL_INTEGRATION_LOADED=1
-  typeset -ga _NIXVM_MANAGED_PATHS
-  _NIXVM_MANAGED_PATHS=()
-  typeset -g _NIXVM_ORIGINAL_JAVA_HOME_SET="${+JAVA_HOME}"
-  typeset -g _NIXVM_ORIGINAL_JAVA_HOME="${JAVA_HOME-}"
-  typeset -g _NIXVM_MANAGED_JAVA_HOME=0
-fi
-
-_nixvm__refresh() {
-  local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/nixvm"
-  local runtime active_file version package_root bin_path entry managed_path is_managed java_home=''
-  local -a cleaned_path desired_paths
-
-  cleaned_path=()
-  for entry in "${path[@]}"; do
-    is_managed=0
-    for managed_path in "${_NIXVM_MANAGED_PATHS[@]}"; do
-      if [[ "$entry" == "$managed_path" ]]; then
-        is_managed=1
-        break
-      fi
-    done
-    if (( is_managed == 0 )); then
-      cleaned_path+=("$entry")
-    fi
-  done
-
-  _NIXVM_MANAGED_PATHS=()
-  desired_paths=()
-  for runtime in java ruby python; do
-    active_file="$data_dir/active/$runtime"
-    [[ -r "$active_file" ]] || continue
-    version=''
-    IFS= read -r version < "$active_file" || continue
-    case "$version" in
-      ''|*[!0-9.]*|.*|*..*|*.) continue ;;
-    esac
-
-    package_root="$data_dir/installed/$runtime/$version"
-    bin_path="$package_root/bin"
-    [[ -d "$bin_path" ]] || continue
-
-    is_managed=0
-    for entry in "${cleaned_path[@]}"; do
-      if [[ "$entry" == "$bin_path" ]]; then
-        is_managed=1
-        break
-      fi
-    done
-    if (( is_managed == 0 )); then
-      for entry in "${desired_paths[@]}"; do
-        if [[ "$entry" == "$bin_path" ]]; then
-          is_managed=1
-          break
-        fi
-      done
-    fi
-    if (( is_managed == 0 )); then
-      desired_paths+=("$bin_path")
-      _NIXVM_MANAGED_PATHS+=("$bin_path")
-    fi
-    if [[ "$runtime" == java ]]; then
-      java_home="$package_root"
-    fi
-  done
-
-  path=("${desired_paths[@]}" "${cleaned_path[@]}")
-  if [[ -n "$java_home" ]]; then
-    export JAVA_HOME="$java_home"
-    _NIXVM_MANAGED_JAVA_HOME=1
-  elif (( _NIXVM_MANAGED_JAVA_HOME != 0 )); then
-    if [[ "$_NIXVM_ORIGINAL_JAVA_HOME_SET" == 1 ]]; then
-      export JAVA_HOME="$_NIXVM_ORIGINAL_JAVA_HOME"
-    else
-      unset JAVA_HOME
-    fi
-    _NIXVM_MANAGED_JAVA_HOME=0
-  fi
-}
-
-nixvm() {
-  local command_name="${1:-}" command_status refresh_status=0
-  local _NIXVM_SHELL_WRAPPER_ACTIVE=1
-  export _NIXVM_SHELL_WRAPPER_ACTIVE
-  if command nixvm "$@"; then
-    command_status=0
-  else
-    command_status=$?
-  fi
-  case "$command_name" in
-    use|remove)
-      if _nixvm__refresh; then
-        refresh_status=0
-      else
-        refresh_status=$?
-      fi
-      ;;
-  esac
-  if [[ "$command_status" -ne 0 ]]; then
-    return "$command_status"
-  fi
-  if [[ "$refresh_status" -ne 0 ]]; then
-    return "$refresh_status"
-  fi
-  return "$command_status"
-}
-
-_nixvm__refresh
-EOF
 }
 
 nixvm__print_runtime_list() {
@@ -518,13 +394,6 @@ nixvm__main() {
   case "$command_name" in
     -h|--help|help)
       nixvm__usage
-      ;;
-    --shell-integration)
-      if [[ "$#" -ne 1 ]]; then
-        nixvm__error 'Usage: nixvm --shell-integration'
-        return 2
-      fi
-      nixvm__emit_shell_integration
       ;;
     install)
       if [[ "$#" -ne 3 ]]; then

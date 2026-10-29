@@ -1,0 +1,47 @@
+#compdef nixvm
+
+local -a commands runtimes list_options
+commands=(
+  'install:Install a runtime version'
+  'list:List installed and available versions'
+  'use:Set the active runtime version'
+  'remove:Remove an installed version'
+  '-h:Show help'
+  '--help:Show help'
+  'help:Show help'
+)
+runtimes=(
+  'java:Java runtime'
+  'ruby:Ruby runtime'
+  'python:Python runtime'
+)
+list_options=(
+  '--available:Show available versions'
+  '--installed:Show installed versions'
+)
+
+if (( CURRENT == 2 )); then
+  _describe 'nixvm command' commands
+  return
+fi
+
+case "$words[2]" in
+  install|use|remove)
+    if (( CURRENT == 3 )); then
+      _describe 'runtime' runtimes
+    elif (( CURRENT == 4 )); then
+      _message 'version'
+    fi
+    ;;
+  list)
+    if (( CURRENT == 3 )); then
+      _describe 'runtime' runtimes
+      _describe 'list option' list_options
+    elif (( CURRENT == 4 )); then
+      case "$words[3]" in
+        java|ruby|python) _describe 'list option' list_options ;;
+        --available|--installed) _describe 'runtime' runtimes ;;
+      esac
+    fi
+    ;;
+esac
