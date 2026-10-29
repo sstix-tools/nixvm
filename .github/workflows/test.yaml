@@ -8,15 +8,23 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
 
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Test execution and help flag
+      - name: Validate CLI and Zsh completion
         run: |
-          chmod +x bin/template-bash-utility
-          ./bin/template-bash-utility --help
-          ./bin/template-bash-utility --version
-          ./bin/template-bash-utility status
+          set -euo pipefail
+          bash -n bin/nixvm
+          zsh -n completion/_nixvm
+          bin/nixvm --help
+          if bin/nixvm invalid-command >/dev/null 2>&1; then
+            echo "Expected an unknown command to fail" >&2
+            exit 1
+          fi
+          if bin/nixvm --shell-integration >/dev/null 2>&1; then
+            echo "Shell integration must not be exposed" >&2
+            exit 1
+          fi
