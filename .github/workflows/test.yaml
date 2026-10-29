@@ -24,7 +24,9 @@ jobs:
             echo "Expected an unknown command to fail" >&2
             exit 1
           fi
-          if bin/nixvm --shell-integration >/dev/null 2>&1; then
-            echo "Shell integration must not be exposed" >&2
-            exit 1
-          fi
+
+      - name: Install bats-core
+        run: brew install bats-core
+
+      - name: Run BATS tests
+        run: bats tests/bats/
