@@ -79,7 +79,7 @@ nixvm__require_macos() {
 
 nixvm__require_nix() {
   if ! command -v nix >/dev/null 2>&1; then
-    nixvm__error "Nix is required. Install it and enable nix-command and flakes (see setup/macos/09-nix.sh)."
+    nixvm__error "Nix is required with nix-command and flakes enabled (see the README for setup instructions)."
     return 1
   fi
 }
