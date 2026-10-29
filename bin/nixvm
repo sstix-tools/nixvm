@@ -88,7 +88,10 @@ nixvm__nix_system() {
   fi
   case "$arch" in
     arm64|aarch64) printf '%s\n' aarch64-darwin ;;
-    x86_64|amd64) printf '%s\n' x86_64-darwin ;;
+    x86_64|amd64)
+      nixvm__error "The configured Nixpkgs input does not support x86_64-darwin."
+      return 1
+      ;;
     *)
       nixvm__error "Unsupported macOS architecture '$arch'."
       return 1

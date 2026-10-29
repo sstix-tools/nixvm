@@ -1,5 +1,5 @@
 {
-  description = "template-bash-utility - Template for Bash CLI utilities";
+  description = "nixvm - Nix-backed Java, Ruby, and Python version manager";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
@@ -7,17 +7,14 @@
     let
       systems = [
         "aarch64-darwin"
-        "x86_64-darwin"
-        "x86_64-linux"
-        "aarch64-linux"
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system nixpkgs.legacyPackages.${system});
     in
     {
       packages = forAllSystems (system: pkgs: rec {
-        default = template-bash-utility;
-        template-bash-utility = pkgs.stdenvNoCC.mkDerivation {
-          pname = "template-bash-utility";
+        default = nixvm;
+        nixvm = pkgs.stdenvNoCC.mkDerivation {
+          pname = "nixvm";
           version = "1.0.0";
           src = ./.;
 
@@ -25,18 +22,16 @@
 
           installPhase = ''
             mkdir -p $out/bin $out/share/zsh/site-functions
-            install -D -m 0755 bin/template-bash-utility $out/bin/template-bash-utility
-            wrapProgram $out/bin/template-bash-utility \
+            install -D -m 0755 bin/nixvm $out/bin/nixvm
+            install -D -m 0644 completion/_nixvm $out/share/zsh/site-functions/_nixvm
+            wrapProgram $out/bin/nixvm \
               --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.coreutils pkgs.jq ]}
-            if [ -d completion ]; then
-              cp -r completion/* $out/share/zsh/site-functions/ 2>/dev/null || true
-            fi
           '';
 
           meta = {
-            description = "Template Bash utility script";
-            mainProgram = "template-bash-utility";
-            platforms = pkgs.lib.platforms.unix;
+            description = "Nix-backed Java, Ruby, and Python version manager";
+            mainProgram = "nixvm";
+            platforms = [ "aarch64-darwin" ];
           };
         };
       });
@@ -44,7 +39,8 @@
       apps = forAllSystems (system: pkgs: {
         default = {
           type = "app";
-          program = "${self.packages.${system}.default}/bin/template-bash-utility";
+          program = "${self.packages.${system}.default}/bin/nixvm";
+          meta.description = "Nix-backed Java, Ruby, and Python version manager";
         };
       });
     };
